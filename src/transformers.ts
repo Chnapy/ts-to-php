@@ -21,8 +21,9 @@ export const getTransformers = (project: Project): ts.TransformerFactory<ts.Sour
         for(const t of tList) {
             nodeList = nodeList.flatMap(t);
         }
-console.log('list', nodeList)
+        
         return nodeList.map(n => ts.visitEachChild(n, visitor, ctx));
+        // return nodeList.flatMap(n => visitor(n) ?? []);
     }
 
     return (sf) => {
