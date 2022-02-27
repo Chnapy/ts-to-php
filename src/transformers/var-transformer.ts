@@ -1,10 +1,10 @@
-import { SyntaxKind, ts } from 'ts-morph';
+import ts from 'typescript';
 import { Transformer } from '../transformers';
 
-export const varTransformer: Transformer = (project) => (ctx) => {
+export const varTransformer: Transformer = (program) => (ctx) => {
     const { factory: f } = ctx;
 
-    const typeChecker = project.getTypeChecker().compilerObject;
+    const typeChecker = program.getTypeChecker();
     const foundSymbols = new Set<ts.Symbol>();
 
     const checkId = (node: ts.Node) => {

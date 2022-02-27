@@ -1,50 +1,19 @@
-import { varTransformer } from './transformers/var-transformer';
-import { Project, printNode, ts, EmitHint } from 'ts-morph';
 import { highlight } from 'cli-highlight';
-import { getTransformers } from './transformers';
-import { ListFormat } from '@ts-morph/common/lib/typescript';
+import ts from 'typescript';
 import { emit } from './printer/emitter';
-import { TransformationContext } from 'typescript';
-
-const noop = () => null;
-const returnUndefined = () => undefined;
-const returnBoolean = () => false;
-const notImplemented = returnUndefined;
-
-const nullTransformationContext = (): TransformationContext & Record<string, any> => ({
-  factory: ts.factory, // eslint-disable-line object-shorthand
-  getCompilerOptions: () => ({}),
-  getEmitResolver: notImplemented,
-  getEmitHost: notImplemented,
-  getEmitHelperFactory: notImplemented,
-  startLexicalEnvironment: noop,
-  resumeLexicalEnvironment: noop,
-  suspendLexicalEnvironment: noop,
-  endLexicalEnvironment: returnUndefined,
-  setLexicalEnvironmentFlags: noop,
-  getLexicalEnvironmentFlags: () => 0,
-  hoistVariableDeclaration: noop,
-  hoistFunctionDeclaration: noop,
-  addInitializationStatement: noop,
-  startBlockScope: noop,
-  endBlockScope: returnUndefined,
-  addBlockScopedVariable: noop,
-  requestEmitHelper: noop,
-  readEmitHelpers: notImplemented,
-  enableSubstitution: noop,
-  enableEmitNotification: noop,
-  isSubstitutionEnabled: returnBoolean,
-  isEmitNotificationEnabled: returnBoolean,
-  onSubstituteNode: (h, n) => n,
-  onEmitNode: (h, n, c) => c(h, n),
-  addDiagnostic: noop,
-});
+import { getTransformers } from './transformers';
 
 const compile = async () => {
-  const project = new Project({
-    // useInMemoryFileSystem: true,
-    tsConfigFilePath: "test-files/tsconfig.json",
-    // skipFileDependencyResolution: true
+  // const project = new Project({
+  //   // useInMemoryFileSystem: true,
+  //   tsConfigFilePath: "test-files/tsconfig.json",
+  //   // skipFileDependencyResolution: true
+  // });
+
+  const program = ts.createProgram([
+    'test-files/toto.ts'
+  ], {
+
   });
 
   //   project.createSourceFile("tutu.ts", `
@@ -84,19 +53,47 @@ const compile = async () => {
   //   }
   // }
 
+  // const res = program.emit(undefined, (a, data) => {
+  //   // console.log('res',data)
+  // }, undefined, undefined, {
+  //   before: [ getTransformers(program) ]
+  // });
 
-  const sfs = project.getProgram().compilerObject.getSourceFiles();
-
-  const writer = project.createWriter();
+  const sfs = program.getSourceFiles()
+    .filter(s => !s.isDeclarationFile) as ts.SourceFile[];
+  // console.log("sfs", sfs)
+  // const writer = project.createWriter();
   // console.log(emitResult.compilerObject)
 
-  const transform = getTransformers(project)(nullTransformationContext());
+  // const transform = getTransformers(project)(nullTransformationContext());
+
+  const transformAst = ts.transform(
+    [ sfs[ 0 ] ],
+    [
+      getTransformers(program)
+    ],
+    // project.compilerOptions.get()
+  );
+
+  // transformNodes(
+  //   factory, project.compilerOptions.get(), sfs,
+  //   // getRawTransformers(project),
+  //   [getTransformers(project)], 
+  //   true
+  // )
+
+  const ast = transformAst.transformed
+    .filter(t => t && t.getFullText().includes('_toto'))
+
+  // console.log(ast.transformed
+  //   .filter(t => !t.isDeclarationFile)
+  // )
 
   console.log('F',
     highlight(
       sfs.filter(s => !s.isDeclarationFile)
-        .map(sf => emit(transform(sf))).join(''),
-      { language: 'typescript' }
+        .map(sf => emit(ast[ 0 ])).join(''),
+      { language: 'php' }
     )
   );
 

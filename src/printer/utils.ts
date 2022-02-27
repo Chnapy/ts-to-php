@@ -1,6 +1,16 @@
 import * as ts from 'typescript';
 import { EmitterContext } from './emitter';
 
+function nodePositionBroken(node: ts.Node) {
+  const broken = node.end < 0 || node.pos < 0;
+
+  if(broken) {
+    console.log('broken', ts.SyntaxKind[node.kind]);
+  }
+
+  return broken;
+}
+
 export function getSourceFile(node: ts.Node): ts.SourceFile {
   let sourceFile = node.getSourceFile();
   if (!sourceFile) {
@@ -24,10 +34,15 @@ const whitespaces = /^([ \f\n\r\t\v\u0085\u00A0\u2028\u2029\u3000]+)/;
 export function addWhitespace(source: string[], node: ts.Node, context: EmitterContext): void;
 export function addWhitespace(source: string[], pos: number, node: ts.Node, context: EmitterContext): void;
 // tslint:disable-next-line:cyclomatic-complexity
-export function addWhitespace(source: string[], posOrNode: number|ts.Node, nodeOrContext: ts.Node|EmitterContext,
+export function addWhitespace(source: string[], posOrNode: number | ts.Node, nodeOrContext: ts.Node | EmitterContext,
   optionalContext?: EmitterContext): void {
   const context = optionalContext || (nodeOrContext as EmitterContext);
-  const node = optionalContext ? nodeOrContext as ts.Node : posOrNode as ts.Node;
+  let node = optionalContext ? nodeOrContext as ts.Node : posOrNode as ts.Node;
+
+  if (nodePositionBroken(node)) {
+    return;
+  }
+
   const pos = optionalContext ? posOrNode as number : node.getFullStart();
 
   if (context.offset > node.getEnd()) {
@@ -37,25 +52,30 @@ export function addWhitespace(source: string[], posOrNode: number|ts.Node, nodeO
     const text = getSourceFile(node).getFullText().substring(pos, node.end);
     const leadingWhitespace = text.match(whitespaces);
     if (leadingWhitespace) {
-      context.offset = pos + leadingWhitespace[1].length;
-      source.push(leadingWhitespace[1]);
+      context.offset = pos + leadingWhitespace[ 1 ].length;
+      source.push(leadingWhitespace[ 1 ]);
     }
   } else {
     const text = getSourceFile(node).getFullText().substring(context.offset, node.end);
     const trailingWhitespace = text.match(whitespaces);
     if (trailingWhitespace) {
-      context.offset = context.offset + trailingWhitespace[1].length;
-      source.push(trailingWhitespace[1]);
+      context.offset = context.offset + trailingWhitespace[ 1 ].length;
+      source.push(trailingWhitespace[ 1 ]);
     }
   }
 }
 
 export function addLeadingComment(source: string[], node: ts.Node, context: EmitterContext): void;
 export function addLeadingComment(source: string[], pos: number, node: ts.Node, context: EmitterContext): void;
-export function addLeadingComment(source: string[], posOrNode: number|ts.Node, nodeOrContext: ts.Node|EmitterContext,
-    optionalContext?: EmitterContext): void {
+export function addLeadingComment(source: string[], posOrNode: number | ts.Node, nodeOrContext: ts.Node | EmitterContext,
+  optionalContext?: EmitterContext): void {
   const context = optionalContext || (nodeOrContext as EmitterContext);
   const node = optionalContext ? nodeOrContext as ts.Node : posOrNode as ts.Node;
+
+  if (nodePositionBroken(node)) {
+    return;
+  }
+
   const pos = optionalContext ? posOrNode as number : node.getFullStart();
 
   if (!getSourceFile(node)) {
@@ -80,10 +100,15 @@ export function addLeadingComment(source: string[], posOrNode: number|ts.Node, n
 
 export function addTrailingComment(source: string[], node: ts.Node, context: EmitterContext): void;
 export function addTrailingComment(source: string[], pos: number, node: ts.Node, context: EmitterContext): void;
-export function addTrailingComment(source: string[], posOrNode: number|ts.Node, nodeOrContext: ts.Node|EmitterContext,
-    optionalContext?: EmitterContext): void {
+export function addTrailingComment(source: string[], posOrNode: number | ts.Node, nodeOrContext: ts.Node | EmitterContext,
+  optionalContext?: EmitterContext): void {
   const context = optionalContext || (nodeOrContext as EmitterContext);
   const node = optionalContext ? nodeOrContext as ts.Node : posOrNode as ts.Node;
+
+  if (nodePositionBroken(node)) {
+    return;
+  }
+
   const pos = optionalContext ? posOrNode as number : node.getEnd();
 
   if (!getSourceFile(node)) {
@@ -107,7 +132,7 @@ export function addTrailingComment(source: string[], posOrNode: number|ts.Node, 
 }
 
 export function addSemicolon(source: string[], node: ts.Node, context: EmitterContext): void {
-  if (getSourceFile(node).getFullText().substring(context.offset).trim().startsWith(';')) {
+  if (getSourceFile(node)?.getFullText().substring(context.offset).trim().startsWith(';')) {
     emitStatic(source, ';', node, context);
   }
 }
@@ -119,6 +144,11 @@ export function addComma(source: string[], node: ts.Node, context: EmitterContex
 }
 
 export function endNode(node: ts.Node, context: EmitterContext): void {
+
+  if (nodePositionBroken(node)) {
+    return;
+  }
+
   const end = node.getEnd();
   if (context.offset < end) {
     context.offset = end;

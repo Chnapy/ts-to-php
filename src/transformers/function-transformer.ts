@@ -1,7 +1,7 @@
-import { Project, ts } from 'ts-morph';
+import ts from 'typescript';
 import { Transformer } from '../transformers';
 
-export const functionTransformer: Transformer = (project) => (ctx) => {
+export const functionTransformer: Transformer = (program) => (ctx) => {
     const { factory: f } = ctx;
 
     return (node) => {
@@ -10,28 +10,36 @@ export const functionTransformer: Transformer = (project) => (ctx) => {
             const children = node.getChildren();
             const ident = children.find(ts.isIdentifier);
             const arrowFn = children.find(ts.isArrowFunction);
-            // console.log(node.getChildren().map(n=>ts.SyntaxKind[n.kind]))
             if (ident && arrowFn) {
 
+                const oldBody = arrowFn.body;
+
                 let body;
-                if (ts.isBlock(arrowFn.body)) {
-                    body = arrowFn.body;
+                if (ts.isBlock(oldBody)) {
+                    body = oldBody;
                 } else {
                     body = f.createBlock([
-                        f.createReturnStatement(arrowFn.body)
+                        f.createReturnStatement(oldBody)
                     ], true);
                 }
 
-                return f.createMethodDeclaration(
-                    undefined,
-                    undefined,
+                const a = f.createMethodDeclaration(
+                    node.decorators,
+                    node.modifiers,
                     undefined,
                     ident,
-                    undefined,
+                    node.questionToken,
                     undefined,
                     arrowFn.parameters,
                     undefined,
                     body);
+
+// console.log('A', a);
+                f.updateObjectLiteralExpression(node.parent, [
+                    a
+                ])
+
+                    return a;
             }
         }
 
